@@ -158,7 +158,7 @@ const orderSchema = new mongoose.Schema({
 
 // Convert _id to id and remove __v in JSON output
 orderSchema.set('toJSON', {
-  transform: function(doc, ret) {
+  transform: function (doc, ret) {
     ret.id = ret._id.toString();
     delete ret._id;
     delete ret.__v;
@@ -167,7 +167,7 @@ orderSchema.set('toJSON', {
 });
 
 // Generate orderId before saving
-orderSchema.pre('save', async function(next) {
+orderSchema.pre('save', async function (next) {
   if (!this.orderId) {
     this.orderId = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
   }
@@ -177,7 +177,7 @@ orderSchema.pre('save', async function(next) {
 // Index for faster queries
 orderSchema.index({ userId: 1, createdAt: -1 });
 orderSchema.index({ userEmail: 1, createdAt: -1 });
-orderSchema.index({ orderId: 1 });
+// orderId already has unique: true which creates an index automatically
 orderSchema.index({ status: 1 });
 
 const Order = mongoose.model('Order', orderSchema);
