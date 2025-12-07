@@ -41,8 +41,9 @@ export const paymentController = {
         return errorResponse(res, 'customerDetails must include customerId, customerEmail, and customerPhone', 400);
       }
 
-      // Convert amount to paise (Cashfree expects amount in smallest currency unit)
-      const amountInPaise = Math.round(amount * 100);
+      // Cashfree API expects amount in rupees (decimal format), not paise
+      // Amount is already in rupees from frontend, so use it directly
+      const amountInRupees = amount;
 
       const headers = getCashfreeHeaders();
 
@@ -60,7 +61,7 @@ export const paymentController = {
       // Create order with Cashfree - this will return payment_session_id directly
       const orderData = {
         order_id: orderId,
-        order_amount: amountInPaise,
+        order_amount: amountInRupees,
         order_currency: 'INR',
         customer_details: {
           customer_id: customerDetails.customerId.toString(),
