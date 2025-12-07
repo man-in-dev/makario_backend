@@ -39,6 +39,7 @@
    CASHFREE_ENV=sandbox
    CASHFREE_APP_ID=your_cashfree_app_id
    CASHFREE_SECRET_KEY=your_cashfree_secret_key
+   CASHFREE_API_VERSION=2023-08-01
    CASHFREE_RETURN_URL=http://localhost:8080/payment/callback
    CASHFREE_NOTIFY_URL=http://localhost:3000/api/payments/webhook
    ```
@@ -54,9 +55,16 @@
    - For Cashfree integration:
      - Sign up at [cashfree.com](https://www.cashfree.com)
      - Get your App ID and Secret Key from the dashboard
+     - **IMPORTANT**: Use production credentials for production environment, sandbox credentials for testing
      - Add them to your `.env` file
      - Set `CASHFREE_ENV=production` when going live
+     - Set `CASHFREE_API_VERSION=2023-08-01` (or `2022-09-01`, `2024-01-01` - check Cashfree docs for latest)
      - In frontend, create `.env` file with `VITE_CASHFREE_ENV=sandbox` (or `production`)
+     - **Production Setup**: Ensure you're using production App ID and Secret Key from Cashfree merchant dashboard
+     - **Authentication Error Fix**: If you get "authentication Failed" error, verify:
+       1. You're using the correct credentials for the environment (production vs sandbox)
+       2. The API version is supported by Cashfree
+       3. Your account has S2S (Server-to-Server) feature approved
 
 4. **Start the Server**
    ```bash

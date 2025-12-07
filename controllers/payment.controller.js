@@ -1,5 +1,7 @@
 import { successResponse, errorResponse } from '../utils/response.js';
 import Order from '../models/Order.model.js';
+import dotenv from 'dotenv';
+dotenv.config();
 
 // Cashfree API base URLs
 const CASHFREE_API_BASE_URL = process.env.CASHFREE_ENV === 'production'
@@ -15,9 +17,13 @@ const getCashfreeHeaders = () => {
     throw new Error('Cashfree credentials are not configured. Please set CASHFREE_APP_ID and CASHFREE_SECRET_KEY in your .env file.');
   }
 
+  // Use appropriate API version based on environment
+  // Cashfree supports: 2022-09-01, 2023-08-01, 2024-01-01
+  const apiVersion = process.env.CASHFREE_API_VERSION || '2023-08-01';
+
   return {
     'Content-Type': 'application/json',
-    'x-api-version': '2025-01-01',
+    'x-api-version': apiVersion,
     'x-client-id': appId,
     'x-client-secret': secretKey,
   };
@@ -41,15 +47,46 @@ export const paymentController = {
         return errorResponse(res, 'customerDetails must include customerId, customerEmail, and customerPhone', 400);
       }
 
-      // Cashfree API expects amount in rupees (decimal format), not paise
-      // Amount is already in rupees from frontend, so use it directly
-      const amountInRupees = amount;
+      // Use amount directly (Cashfree expects amount in rupees for INR currency)
+      const orderAmount = Math.round(amount);
 
       const headers = getCashfreeHeaders();
+      const isProduction = process.env.CASHFREE_ENV === 'production';
+
+      console.log('Cashfree Configuration:', {
+        environment: isProduction ? 'PRODUCTION' : 'SANDBOX',
+        apiBaseUrl: CASHFREE_API_BASE_URL,
+        apiVersion: headers['x-api-version'],
+        hasAppId: !!process.env.CASHFREE_APP_ID,
+        hasSecretKey: !!process.env.CASHFREE_SECRET_KEY,
+        appIdLength: process.env.CASHFREE_APP_ID?.length || 0,
+      });
 
       // Prepare return and notify URLs
-      const returnUrl = process.env.CASHFREE_RETURN_URL || `${process.env.FRONTEND_URL || 'http://localhost:8080'}/payment/callback?orderId=${orderId}`;
-      const notifyUrl = process.env.CASHFREE_NOTIFY_URL || `${process.env.BACKEND_URL || 'http://localhost:3000'}/api/payments/webhook`;
+      // In production, Cashfree requires HTTPS URLs
+      let returnUrl = process.env.CASHFREE_RETURN_URL;
+      let notifyUrl = process.env.CASHFREE_NOTIFY_URL;
+
+      if (!returnUrl) {
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:8080';
+        // In production mode, ensure HTTPS (or use provided URL)
+        if (isProduction && frontendUrl.startsWith('http://localhost')) {
+          throw new Error('Production mode requires HTTPS URLs. Please set CASHFREE_RETURN_URL or FRONTEND_URL with HTTPS in your .env file.');
+        }
+        returnUrl = `${frontendUrl}/payment/callback?orderId=${orderId}`;
+      } else {
+        // If CASHFREE_RETURN_URL is set, append orderId if not already present
+        returnUrl = returnUrl.includes('orderId=') ? returnUrl : `${returnUrl}${returnUrl.includes('?') ? '&' : '?'}orderId=${orderId}`;
+      }
+
+      if (!notifyUrl) {
+        const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
+        // In production mode, ensure HTTPS (or use provided URL)
+        if (isProduction && backendUrl.startsWith('http://localhost')) {
+          throw new Error('Production mode requires HTTPS URLs. Please set CASHFREE_NOTIFY_URL or BACKEND_URL with HTTPS in your .env file.');
+        }
+        notifyUrl = `${backendUrl}/api/payments/webhook`;
+      }
 
       // Format phone number - ensure it has country code if missing
       let phoneNumber = customerDetails.customerPhone.toString().trim();
@@ -61,7 +98,7 @@ export const paymentController = {
       // Create order with Cashfree - this will return payment_session_id directly
       const orderData = {
         order_id: orderId,
-        order_amount: amountInRupees,
+        order_amount: orderAmount,
         order_currency: 'INR',
         customer_details: {
           customer_id: customerDetails.customerId.toString(),
@@ -105,15 +142,25 @@ export const paymentController = {
           statusText: orderResponse.statusText,
           headers: Object.fromEntries(orderResponse.headers.entries()),
           body: orderResponseData,
+          environment: isProduction ? 'PRODUCTION' : 'SANDBOX',
+          apiUrl: CASHFREE_API_BASE_URL,
         });
 
         // Try to extract detailed error message
-        const errorMessage = orderResponseData.message ||
+        let errorMessage = orderResponseData.message ||
           orderResponseData.error?.message ||
           orderResponseData.error?.description ||
           orderResponseData.type ||
           (typeof orderResponseData === 'string' ? orderResponseData : JSON.stringify(orderResponseData)) ||
           `Cashfree API error: ${orderResponse.status} ${orderResponse.statusText}`;
+
+        // Provide specific guidance for authentication errors
+        if (orderResponse.status === 401 || orderResponse.status === 403 ||
+          errorMessage.toLowerCase().includes('authentication') ||
+          errorMessage.toLowerCase().includes('unauthorized')) {
+          errorMessage += `. Please verify: 1) You're using ${isProduction ? 'PRODUCTION' : 'SANDBOX'} credentials, 2) CASHFREE_APP_ID and CASHFREE_SECRET_KEY are correct, 3) Your account has S2S feature approved.`;
+        }
+
         throw new Error(errorMessage);
       }
 
