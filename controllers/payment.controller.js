@@ -271,7 +271,6 @@ export const paymentController = {
   async handleWebhook(req, res, next) {
     try {
       const webhookData = req.body;
-
       // Verify webhook signature (implement signature verification for production)
       // For now, we'll process the webhook
 
