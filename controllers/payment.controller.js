@@ -357,7 +357,7 @@ export const paymentController = {
 
       await order.save();
 
-      const updatedOrder = await order.findOne({ orderId });
+      const updatedOrder = await Order.findOne({ orderId });
       console.log('Updated order:', updatedOrder);
 
       console.log(`Webhook processed for order: ${orderId}, status: ${paymentStatus}`);
