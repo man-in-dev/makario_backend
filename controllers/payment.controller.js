@@ -214,6 +214,8 @@ export const paymentController = {
         { headers }
       );
 
+      console.log('Cashfree order response:', response);
+
       if (!response.ok) {
         throw new Error(`Cashfree API error: ${response.status}`);
       }
@@ -223,9 +225,12 @@ export const paymentController = {
       if (!cashfreeOrder) {
         return errorResponse(res, 'Order not found in Cashfree', 404);
       }
+      console.log('Cashfree order:', cashfreeOrder);
 
       // Find the order in our database
       const order = await Order.findOne({ orderId });
+
+      console.log('Order:', order);
 
       if (!order) {
         return errorResponse(res, 'Order not found in database', 404);
