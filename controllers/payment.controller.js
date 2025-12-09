@@ -369,6 +369,8 @@ export const paymentController = {
 
       await order.save();
 
+      console.log('Order saved:', order);
+
       console.log(`Webhook processed for order: ${orderId}, status: ${paymentStatus}`);
     } catch (error) {
       console.error("Webhook processing error:", error);
