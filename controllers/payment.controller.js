@@ -323,8 +323,6 @@ export const paymentController = {
       // Respond immediately so Cashfree marks it successful
       res.status(200).json({ status: "OK" });
 
-      console.log('Webhook data below response:', webhookData);
-
       // Process asynchronously (do not wait)
       const orderId = webhookData.data?.order?.order_id || webhookData.order?.orderId;
       if (!orderId) {
@@ -332,15 +330,11 @@ export const paymentController = {
         return;
       }
 
-      console.log('Order ID:', orderId);
-
       const order = await Order.findOne({ orderId });
       if (!order) {
         console.error(`Order not found: ${orderId}`);
         return;
       }
-
-      console.log('Order:', order);
 
       const paymentStatus =
         webhookData.data?.payment?.payment_status === "SUCCESS"
@@ -348,8 +342,6 @@ export const paymentController = {
           : webhookData.data?.payment?.payment_status === "FAILED"
             ? "failed"
             : "pending";
-
-      console.log('Payment status:', paymentStatus);
 
       order.paymentDetails = {
         ...order.paymentDetails,
@@ -359,17 +351,14 @@ export const paymentController = {
         cashfreePaymentStatus: webhookData.data?.payment?.payment_status,
       };
 
-      console.log('Payment details:', order.paymentDetails);
-
       if (paymentStatus === "completed" && order.status === "pending") {
         order.status = "confirmed";
       }
 
-      console.log('Order status:', order.status);
-
       await order.save();
 
-      console.log('Order saved:', order);
+      const updatedOrder = await order.findOne({ orderId });
+      console.log('Updated order:', updatedOrder);
 
       console.log(`Webhook processed for order: ${orderId}, status: ${paymentStatus}`);
     } catch (error) {
