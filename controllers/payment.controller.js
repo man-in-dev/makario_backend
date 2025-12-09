@@ -268,30 +268,80 @@ export const paymentController = {
   /**
    * Handle Cashfree webhook
    */
+  // async handleWebhook(req, res, next) {
+  //   try {
+  //     const webhookData = req.body;
+  //     // Verify webhook signature (implement signature verification for production)
+  //     // For now, we'll process the webhook
+
+  //     const orderId = webhookData.data?.order?.order_id || webhookData.order?.orderId;
+
+  //     if (!orderId) {
+  //       console.error('Webhook received without order ID');
+  //       return res.status(400).json({ success: false, message: 'Order ID missing' });
+  //     }
+
+  //     // Find the order in our database
+  //     const order = await Order.findOne({ orderId });
+
+  //     if (!order) {
+  //       console.error(`Order not found: ${orderId}`);
+  //       return res.status(404).json({ success: false, message: 'Order not found' });
+  //     }
+
+  //     // Update payment details based on webhook data
+  //     const paymentStatus = webhookData.data?.payment?.payment_status === 'SUCCESS' ? 'completed' :
+  //       webhookData.data?.payment?.payment_status === 'FAILED' ? 'failed' : 'pending';
+
+  //     order.paymentDetails = {
+  //       ...order.paymentDetails,
+  //       paymentStatus,
+  //       cashfreeOrderId: webhookData.data?.order?.order_id || orderId,
+  //       cashfreePaymentId: webhookData.data?.payment?.cf_payment_id || null,
+  //       cashfreePaymentStatus: webhookData.data?.payment?.payment_status,
+  //     };
+
+  //     // Update order status if payment is successful
+  //     if (paymentStatus === 'completed' && order.status === 'pending') {
+  //       order.status = 'confirmed';
+  //     }
+
+  //     await order.save();
+
+  //     console.log(`Webhook processed for order: ${orderId}, status: ${paymentStatus}`);
+
+  //     return res.status(200).json({ success: true, message: 'Webhook processed' });
+  //   } catch (error) {
+  //     console.error('Webhook processing error:', error);
+  //     return res.status(500).json({ success: false, message: 'Webhook processing failed' });
+  //   }
+  // },
   async handleWebhook(req, res, next) {
     try {
       const webhookData = req.body;
-      // Verify webhook signature (implement signature verification for production)
-      // For now, we'll process the webhook
 
+      // Respond immediately so Cashfree marks it successful
+      res.status(200).json({ status: "OK" });
+
+      // Process asynchronously (do not wait)
       const orderId = webhookData.data?.order?.order_id || webhookData.order?.orderId;
-
       if (!orderId) {
         console.error('Webhook received without order ID');
-        return res.status(400).json({ success: false, message: 'Order ID missing' });
+        return;
       }
 
-      // Find the order in our database
       const order = await Order.findOne({ orderId });
-
       if (!order) {
         console.error(`Order not found: ${orderId}`);
-        return res.status(404).json({ success: false, message: 'Order not found' });
+        return;
       }
 
-      // Update payment details based on webhook data
-      const paymentStatus = webhookData.data?.payment?.payment_status === 'SUCCESS' ? 'completed' :
-        webhookData.data?.payment?.payment_status === 'FAILED' ? 'failed' : 'pending';
+      const paymentStatus =
+        webhookData.data?.payment?.payment_status === "SUCCESS"
+          ? "completed"
+          : webhookData.data?.payment?.payment_status === "FAILED"
+            ? "failed"
+            : "pending";
 
       order.paymentDetails = {
         ...order.paymentDetails,
@@ -301,20 +351,16 @@ export const paymentController = {
         cashfreePaymentStatus: webhookData.data?.payment?.payment_status,
       };
 
-      // Update order status if payment is successful
-      if (paymentStatus === 'completed' && order.status === 'pending') {
-        order.status = 'confirmed';
+      if (paymentStatus === "completed" && order.status === "pending") {
+        order.status = "confirmed";
       }
 
       await order.save();
 
       console.log(`Webhook processed for order: ${orderId}, status: ${paymentStatus}`);
-
-      return res.status(200).json({ success: true, message: 'Webhook processed' });
     } catch (error) {
-      console.error('Webhook processing error:', error);
-      return res.status(500).json({ success: false, message: 'Webhook processing failed' });
+      console.error("Webhook processing error:", error);
     }
-  },
+  }
 };
 
