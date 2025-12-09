@@ -320,10 +320,10 @@ export const paymentController = {
     try {
       const webhookData = req.body;
 
-      console.log('Webhook data:', webhookData);
-
       // Respond immediately so Cashfree marks it successful
       res.status(200).json({ status: "OK" });
+
+      console.log('Webhook data:', webhookData);
 
       // Process asynchronously (do not wait)
       const orderId = webhookData.data?.order?.order_id || webhookData.order?.orderId;
