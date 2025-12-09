@@ -206,59 +206,53 @@ export const paymentController = {
         return errorResponse(res, 'Order ID is required', 400);
       }
 
-      const headers = getCashfreeHeaders();
+      // const headers = getCashfreeHeaders();
 
-      // Get order details from Cashfree
-      const response = await fetch(
-        `${CASHFREE_API_BASE_URL}/orders/${orderId}`,
-        { headers }
-      );
+      // // Get order details from Cashfree
+      // const response = await fetch(
+      //   `${CASHFREE_API_BASE_URL}/orders/${orderId}`,
+      //   { headers }
+      // );
 
-      console.log('Cashfree order response:', response);
+      // if (!response.ok) {
+      //   throw new Error(`Cashfree API error: ${response.status}`);
+      // }
 
-      if (!response.ok) {
-        throw new Error(`Cashfree API error: ${response.status}`);
-      }
+      // const cashfreeOrder = await response.json();
 
-      const cashfreeOrder = await response.json();
-
-      if (!cashfreeOrder) {
-        return errorResponse(res, 'Order not found in Cashfree', 404);
-      }
-      console.log('Cashfree order:', cashfreeOrder);
+      // if (!cashfreeOrder) {
+      //   return errorResponse(res, 'Order not found in Cashfree', 404);
+      // }
 
       // Find the order in our database
       const order = await Order.findOne({ orderId });
-
-      console.log('Order:', order);
 
       if (!order) {
         return errorResponse(res, 'Order not found in database', 404);
       }
 
-      // Update payment details based on Cashfree response
-      const paymentStatus = cashfreeOrder.payment_status === 'SUCCESS' ? 'completed' :
-        cashfreeOrder.payment_status === 'FAILED' ? 'failed' : 'pending';
+      // // Update payment details based on Cashfree response
+      // const paymentStatus = cashfreeOrder.payment_status === 'SUCCESS' ? 'completed' :
+      //   cashfreeOrder.payment_status === 'FAILED' ? 'failed' : 'pending';
 
-      order.paymentDetails = {
-        ...order.paymentDetails,
-        paymentStatus,
-        cashfreeOrderId: cashfreeOrder.order_id,
-        cashfreePaymentId: cashfreeOrder.payment_id || null,
-        cashfreePaymentStatus: cashfreeOrder.payment_status,
-      };
+      // order.paymentDetails = {
+      //   ...order.paymentDetails,
+      //   paymentStatus,
+      //   cashfreeOrderId: cashfreeOrder.order_id,
+      //   cashfreePaymentId: cashfreeOrder.payment_id || null,
+      //   cashfreePaymentStatus: cashfreeOrder.payment_status,
+      // };
 
-      // Update order status if payment is successful
-      if (paymentStatus === 'completed' && order.status === 'pending') {
-        order.status = 'confirmed';
-      }
+      // // Update order status if payment is successful
+      // if (paymentStatus === 'completed' && order.status === 'pending') {
+      //   order.status = 'confirmed';
+      // }
 
-      await order.save();
+      // await order.save();
 
       return successResponse(res, {
         order: order.toJSON(),
-        paymentStatus,
-        cashfreeOrder,
+        paymentStatus: order.paymentDetails.paymentStatus,
       }, 'Payment verified successfully');
     } catch (error) {
       console.error('Verify payment error:', error.message);
