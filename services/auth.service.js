@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt';
 import User from '../models/User.model.js';
+import Order from '../models/Order.model.js';
 import { generateToken } from '../config/jwt.js';
 
 export const authService = {
@@ -103,6 +104,97 @@ export const authService = {
 
         // Convert to JSON to apply schema transformations
         return user.toJSON();
+    },
+
+    async getAllUsers(filters = {}) {
+        const query = {};
+
+        // Search by name or email
+        if (filters.search) {
+            query.$or = [
+                { name: { $regex: filters.search, $options: 'i' } },
+                { email: { $regex: filters.search, $options: 'i' } },
+            ];
+        }
+
+        // Pagination
+        const page = parseInt(filters.page) || 1;
+        const limit = parseInt(filters.limit) || 20;
+        const skip = (page - 1) * limit;
+
+        // Sorting
+        const sortBy = filters.sortBy || 'createdAt';
+        const sortOrder = filters.sortOrder === 'asc' ? 1 : -1;
+        const sort = { [sortBy]: sortOrder };
+
+        const [users, total] = await Promise.all([
+            User.find(query)
+                .sort(sort)
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            User.countDocuments(query),
+        ]);
+
+        // Get order statistics for each user
+        const userIds = users.map(u => u._id);
+
+        // Aggregate order statistics (only for users with orders)
+        const orderStats = await Order.aggregate([
+            {
+                $match: {
+                    userId: { $in: userIds, $ne: null }
+                }
+            },
+            {
+                $group: {
+                    _id: '$userId',
+                    orderCount: { $sum: 1 },
+                    totalSpend: { $sum: '$total' },
+                    lastOrderDate: { $max: '$createdAt' },
+                },
+            },
+        ]);
+
+        // Create a map of userId to stats
+        const statsMap = {};
+        orderStats.forEach(stat => {
+            if (stat._id) {
+                statsMap[stat._id.toString()] = {
+                    orderCount: stat.orderCount,
+                    totalSpend: stat.totalSpend,
+                    lastOrderDate: stat.lastOrderDate,
+                };
+            }
+        });
+
+        // Combine user data with order statistics
+        const usersWithStats = users.map(user => {
+            const { _id, __v, password, ...userData } = user;
+            const stats = statsMap[_id.toString()] || {
+                orderCount: 0,
+                totalSpend: 0,
+                lastOrderDate: null,
+            };
+
+            return {
+                ...userData,
+                id: _id.toString(),
+                orders: stats.orderCount,
+                totalSpend: stats.totalSpend,
+                lastOrder: stats.lastOrderDate,
+            };
+        });
+
+        return {
+            users: usersWithStats,
+            pagination: {
+                page,
+                limit,
+                total,
+                pages: Math.ceil(total / limit),
+            },
+        };
     },
 };
 

@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes.js';
 import orderRoutes from './routes/order.routes.js';
 import paymentRoutes from './routes/payment.routes.js';
+import shipwayRoutes from './routes/shipway.routes.js';
+import productRoutes from './routes/product.routes.js';
 import { errorHandler } from './middleware/error.middleware.js';
 import { connectDB } from './config/database.js';
 
@@ -36,6 +38,8 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/shipway', shipwayRoutes);
+app.use('/api/products', productRoutes);
 
 // 404 handler
 app.use((req, res) => {

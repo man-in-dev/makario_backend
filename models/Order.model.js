@@ -82,6 +82,54 @@ const paymentDetailsSchema = new mongoose.Schema({
   },
 }, { _id: false });
 
+const shippingDetailsSchema = new mongoose.Schema({
+  shipmentId: {
+    type: String,
+    default: '',
+  },
+  trackingNumber: {
+    type: String,
+    default: '',
+  },
+  awbNumber: {
+    type: String,
+    default: '',
+  },
+  courierName: {
+    type: String,
+    default: '',
+  },
+  courierTrackingUrl: {
+    type: String,
+    default: '',
+  },
+  labelUrl: {
+    type: String,
+    default: '',
+  },
+  manifestUrl: {
+    type: String,
+    default: '',
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'created', 'picked', 'in_transit', 'out_for_delivery', 'delivered', 'failed', 'cancelled'],
+    default: 'pending',
+  },
+  estimatedDeliveryDate: {
+    type: Date,
+    default: null,
+  },
+  deliveredDate: {
+    type: Date,
+    default: null,
+  },
+  shipwayData: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {},
+  },
+}, { _id: false });
+
 const orderSchema = new mongoose.Schema({
   orderId: {
     type: String,
@@ -107,6 +155,10 @@ const orderSchema = new mongoose.Schema({
   },
   paymentDetails: {
     type: paymentDetailsSchema,
+    default: {},
+  },
+  shippingDetails: {
+    type: shippingDetailsSchema,
     default: {},
   },
   subtotal: {

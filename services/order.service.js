@@ -1,4 +1,10 @@
 import Order from '../models/Order.model.js';
+import { shipwayService } from './shipway.service.js';
+import dotenv from 'dotenv';
+dotenv.config();
+
+// Check if auto-shipment creation is enabled
+const AUTO_CREATE_SHIPMENT = process.env.SHIPWAY_AUTO_CREATE_SHIPMENT === 'true';
 
 export const orderService = {
   async createOrder(orderData, userId = null) {
@@ -111,13 +117,45 @@ export const orderService = {
         $setOnInsert: { updatedAt: new Date() }
       },
       { new: true, runValidators: true }
-    ).lean();
+    );
 
     if (!order) {
       throw new Error('Order not found');
     }
 
-    const { _id, __v, ...orderData } = order;
+    // Auto-create shipment if enabled and order is confirmed/processing
+    if (AUTO_CREATE_SHIPMENT && (status === 'confirmed' || status === 'processing')) {
+      if (!order.shippingDetails?.shipmentId) {
+        try {
+          const shipmentData = await shipwayService.createShipment(order.toJSON());
+
+          order.shippingDetails = {
+            shipmentId: shipmentData.shipmentId,
+            trackingNumber: shipmentData.trackingNumber,
+            awbNumber: shipmentData.awbNumber,
+            courierName: shipmentData.courierName,
+            courierTrackingUrl: shipmentData.courierTrackingUrl,
+            labelUrl: shipmentData.labelUrl,
+            manifestUrl: shipmentData.manifestUrl,
+            status: shipmentData.status,
+            estimatedDeliveryDate: shipmentData.estimatedDeliveryDate,
+            shipwayData: shipmentData.rawResponse,
+          };
+
+          if (status === 'confirmed') {
+            order.status = 'processing';
+          }
+
+          await order.save();
+          console.log(`Auto-created shipment for order: ${order.orderId}`);
+        } catch (error) {
+          console.error(`Failed to auto-create shipment for order ${order.orderId}:`, error.message);
+          // Don't throw error - order status update should still succeed
+        }
+      }
+    }
+
+    const { _id, __v, ...orderData } = order.toObject();
     return {
       ...orderData,
       id: _id.toString(),
@@ -142,13 +180,42 @@ export const orderService = {
         }
       },
       { new: true, runValidators: true }
-    ).lean();
+    );
 
     if (!order) {
       throw new Error('Order not found');
     }
 
-    const { _id, __v, ...orderData } = order;
+    // Auto-create shipment if payment is completed and auto-create is enabled
+    if (AUTO_CREATE_SHIPMENT && paymentDetails.paymentStatus === 'completed') {
+      if (!order.shippingDetails?.shipmentId) {
+        try {
+          const shipmentData = await shipwayService.createShipment(order.toJSON());
+
+          order.shippingDetails = {
+            shipmentId: shipmentData.shipmentId,
+            trackingNumber: shipmentData.trackingNumber,
+            awbNumber: shipmentData.awbNumber,
+            courierName: shipmentData.courierName,
+            courierTrackingUrl: shipmentData.courierTrackingUrl,
+            labelUrl: shipmentData.labelUrl,
+            manifestUrl: shipmentData.manifestUrl,
+            status: shipmentData.status,
+            estimatedDeliveryDate: shipmentData.estimatedDeliveryDate,
+            shipwayData: shipmentData.rawResponse,
+          };
+
+          order.status = 'processing';
+          await order.save();
+          console.log(`Auto-created shipment for order: ${order.orderId} after payment completion`);
+        } catch (error) {
+          console.error(`Failed to auto-create shipment for order ${order.orderId}:`, error.message);
+          // Don't throw error - payment update should still succeed
+        }
+      }
+    }
+
+    const { _id, __v, ...orderData } = order.toObject();
     return {
       ...orderData,
       id: _id.toString(),

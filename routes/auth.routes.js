@@ -18,5 +18,8 @@ router.post('/login', validate(loginValidator), authController.login);
 router.get('/me', authenticate, authController.getProfile);
 router.put('/profile', authenticate, validate(updateProfileValidator), authController.updateProfile);
 
+// Admin routes
+router.get('/users', authenticate, authController.getAllUsers);
+
 export default router;
 

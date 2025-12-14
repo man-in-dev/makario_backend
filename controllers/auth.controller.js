@@ -44,5 +44,23 @@ export const authController = {
             next(error);
         }
     },
+
+    async getAllUsers(req, res, next) {
+        try {
+            const filters = {
+                search: req.query.search,
+                page: req.query.page,
+                limit: req.query.limit,
+                sortBy: req.query.sortBy,
+                sortOrder: req.query.sortOrder,
+            };
+
+            const result = await authService.getAllUsers(filters);
+            return successResponse(res, result, 'Users retrieved successfully');
+        } catch (error) {
+            console.log('Get all users error:', error.message);
+            next(error);
+        }
+    },
 };
 
